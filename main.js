@@ -50,7 +50,7 @@ function handleResponse(res) {
   } catch(error) {
     let info = `No results for "${qs('input').value}". `;
     info += `Common words and swears (decided by YT) are excluded. `;
-    info += `Queries currently can only be a single word. `;
+    info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
     qs('#updated-at').innerText = info;
     console.log(error);
     return;
@@ -60,7 +60,7 @@ function handleResponse(res) {
   if (!word) {
     let info = `No results for "${qs('input').value}". `;
     info += `Common words and swears (decided by YT) are excluded. `;
-    info += `Queries currently can only be a single word. `;
+    info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
     qs('#updated-at').innerText = info;
     return;
   }
