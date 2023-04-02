@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Squeex Search</title>
+
+	<link rel="stylesheet" href="main.css">
+
+	<script defer src="main.js"></script>
+	<script defer src="chart.js"></script>
+
+
+</head>
+<body>
+
+	<h1>Squeex VOD Search</h1>
+
+	<input type="text">
+
+	<div id='updated-at'></div>
+
+	<div id="canvas-container">
+		<canvas id="barchart"></canvas>
+	</div>
+
+	<div id="results-container">
+		<div id="template-video-container" class="video-container">
+			<a class="video-title" href="" target="_blank"></a>
+			<p class="upload-date"></p>
+			<div class="segments-container">
+				<p id="segment-template" class="segement-link"><a href="" target="_blank"></a></p>
+
+			</div>
+		</div>
+		
+	</div>
+
+	<div id="chart-container"></div>
+
+</body>
+</html>
