@@ -48,10 +48,22 @@ function handleResponse(res) {
   try {
     parsed = JSON.parse(res);
   } catch(error) {
+    let info = `No results for "${qs('input').value}". `;
+    info += `Common words and swears (decided by YT) are excluded. `;
+    info += `Queries currently can only be a single word. `;
+    qs('#updated-at').innerText = info;
     console.log(error);
     return;
   }
   const { word, segments, meta, updatedAt } = parsed;
+
+  if (!word) {
+    let info = `No results for "${qs('input').value}". `;
+    info += `Common words and swears (decided by YT) are excluded. `;
+    info += `Queries currently can only be a single word. `;
+    qs('#updated-at').innerText = info;
+    return;
+  }
 
   // Show when data was last updated
   const totalMentions = Object.values(segments).reduce((acc, vidSegments) => {
