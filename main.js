@@ -1,4 +1,5 @@
-const HOST = 'http://localhost:3000';
+// const HOST = 'http://localhost:3000';
+const HOST = 'https://server.lawrencehook.com/SqueexVodSearch';
 
 function sendHTTPRequest(type, url, jsonParams, { token, raw=false }={}) {
   const request = new Promise((resolve, reject) => {
