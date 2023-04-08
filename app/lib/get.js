@@ -45,12 +45,12 @@ function getPhrase(phrase) {
 		const indices = Array.from(text.matchAll(regex)).map(m => m.index);
 		const segments = indices.map(index => {
 			let dec = 0;
-			while (!((index - dec) in idx_to_time)) {
+			while (index - dec > 0 && !((index - dec) in idx_to_time)) {
 				dec += 1;
 			}
 
 			let inc = phrase.length;
-			while (!((index + inc) in idx_to_time)) {
+			while (index + inc < text.length && !((index + inc) in idx_to_time)) {
 				inc += 1;
 			}
 
