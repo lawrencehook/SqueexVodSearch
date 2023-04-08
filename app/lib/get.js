@@ -57,7 +57,7 @@ function getPhrase(phrase) {
 			const startIndex = index - dec;
 			const endIndex = index + inc;
 
-			const startTime = idx_to_time[startIndex];
+			const startTime = idx_to_time[startIndex] || 0;
 			const segmentPhrase = text.substring(startIndex, endIndex).trim();
 
 			// console.log(segmentPhrase, startIndex, endIndex, index, phrase.length);
