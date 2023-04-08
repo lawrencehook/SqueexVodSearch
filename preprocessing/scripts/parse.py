@@ -13,9 +13,21 @@ Notes
 
 output:
     - id: the video ID
-    - segments: a list of segments as they appear in the vtt file
+    - segments: a list of segments as they appear in the vtt file.
+        - segment: [startTime, text]
     - word_map: a dictionary that maps a word to a list of indexes in which it appears in the segments list
     - upload_date
+
+    extended:
+        - full_text
+        - TODO: Map an index in the full_text string to a time.
+            - string index
+            - word index
+            - I have the time of each word, I think
+
+            To test: what info can i reliably retrieve? a la <c></c>
+
+
 
 segment object:
     [start time, text]
@@ -48,8 +60,15 @@ if __name__ == '__main__':
     # Parse vtt file
     segments = []
     word_map = {}
+    full_text = ''
+    idx_to_time = {}
     seen_starts = set()
     for caption in webvtt.read(vtt_filename):
+
+        print(caption)
+        print(caption.start)
+        print(caption.end)
+        print(caption.text)
 
         start = get_sec(caption.start)
         text = re.sub(r'\[.*?\]', '', caption.text).strip().lower()
@@ -71,6 +90,24 @@ if __name__ == '__main__':
             else:
                 word_map[word] = { idx }
 
+
+        full_text += ' ' + text
+        idx_to_time[len(full_text)] = caption.end
+
+    # print(full_text)
+    # print(idx_to_time)
+
+    # import re
+    # query = 'everyone in the chat'
+    # indices = [i.start() for i in re.finditer(pattern=query, string=full_text)]
+    # for i in indices:
+    #     print(i)
+    #     dec = 0
+    #     while (i-dec) not in idx_to_time:
+    #         dec += 1
+    #     print('start: ' + idx_to_time[i-dec])
+    #     print(full_text[i-dec:i+len(query)])
+    # sys.exit(1)
 
     # Convert sets to lists, for the json export
     for word, idxs in word_map.items():
