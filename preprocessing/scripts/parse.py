@@ -65,11 +65,6 @@ if __name__ == '__main__':
     seen_starts = set()
     for caption in webvtt.read(vtt_filename):
 
-        print(caption)
-        print(caption.start)
-        print(caption.end)
-        print(caption.text)
-
         start = get_sec(caption.start)
         text = re.sub(r'\[.*?\]', '', caption.text).strip().lower()
 
@@ -92,7 +87,7 @@ if __name__ == '__main__':
 
 
         full_text += ' ' + text
-        idx_to_time[len(full_text)] = caption.end
+        idx_to_time[len(full_text)] = get_sec(caption.end)
 
     # print(full_text)
     # print(idx_to_time)
@@ -119,6 +114,8 @@ if __name__ == '__main__':
         'id': vid,
         'segments': segments,
         'word_map': word_map,
+        'full_text': full_text,
+        'idx_to_time': idx_to_time,
         'upload_date': upload_date
     }))
     # }, indent=2))

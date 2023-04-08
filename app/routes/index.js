@@ -1,14 +1,19 @@
 var express = require('express');
 var router = express.Router();
-var getWord = require('../lib/get-word');
+var { getWord, getPhrase } = require('../lib/get');
 
 
-/* GET a word */
-router.get('/:word', function(req, res, next) {
-  const { word } = req.params;
-  console.log(word);
+/* GET query */
+router.get('/:query', function(req, res, next) {
+  const { query } = req.params;
+  console.log(query);
 
-  res.json(getWord(word));
+  // return res.json(getPhrase(query));
+  if (query.trim().includes(' ')) {
+    return res.json(getPhrase(query));
+  } else {
+    res.json(getWord(query));
+  }
 });
 
 

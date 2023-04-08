@@ -28,6 +28,16 @@ Format:
 	updatedAt
 }
 
+Extended:
+{
+	full: {
+		[vid]: {
+			text: '',
+			idx_to_time: { ... }
+		}
+	}
+}
+
 '''
 
 if __name__ == '__main__':
@@ -37,8 +47,10 @@ if __name__ == '__main__':
 
 	final_segments = {}
 	final_word_map = {}
+	full_text_obj = {}
 	meta = {}
 	for filename in files:
+		if not 'json' in filename: continue
 		filepath = os.path.join(path, filename)
 
 		with open(filepath, 'r') as file:
@@ -52,6 +64,8 @@ if __name__ == '__main__':
 			vid = data['id']
 			segments = data['segments']
 			word_map = data['word_map']
+			full_text = data['full_text']
+			idx_to_time = data['idx_to_time']
 			upload_date = data['upload_date']
 			title = re.sub(r' \[.*$', '', filename)
 
@@ -69,6 +83,11 @@ if __name__ == '__main__':
 						vid: word_map[word]
 					}
 
+			full_text_obj[vid] = {
+				'text': full_text,
+				'idx_to_time': idx_to_time
+			}
+
 	output = {
 		'segments': final_segments,
 		'word_map': final_word_map,
@@ -80,5 +99,8 @@ if __name__ == '__main__':
 	# print(json.dumps(final_segments, indent=2))
 
 
-	with open('data/final.json', 'w') as f:
-		json.dump(output, f)
+	# with open('data/final.json', 'w') as f:
+	# 	json.dump(output, f)
+
+	with open('data/full.json', 'w') as f:
+		json.dump(full_text_obj, f)

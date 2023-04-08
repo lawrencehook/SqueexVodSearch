@@ -1,4 +1,4 @@
-// const HOST = 'http://localhost:3000';
+// const HOST = 'http://localhost:3003';
 const HOST = 'https://server.lawrencehook.com/SqueexVodSearch';
 
 function sendHTTPRequest(type, url, jsonParams, { token, raw=false }={}) {
@@ -51,17 +51,17 @@ function handleResponse(res) {
     let info = `No results for "${qs('input').value}". `;
     info += `Common words and swears (decided by YT) are excluded. `;
     info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
-    qs('#updated-at').innerText = info;
+    qs('#info-message').innerText = info;
     console.log(error);
     return;
   }
   const { word, segments, meta, updatedAt } = parsed;
 
   if (!word) {
-    let info = `No results for "${qs('input').value}". `;
+    let info = `No results for "${qs('input').value}".\n`;
     info += `Common words and swears (decided by YT) are excluded. `;
     info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
-    qs('#updated-at').innerText = info;
+    qs('#info-message').innerText = info;
     return;
   }
 
@@ -73,7 +73,7 @@ function handleResponse(res) {
   }, 0);
   const info = `Squeex has said '${word}' ${totalMentions} times. ` + 
                `Last updated: ${formatDate(updatedAt)}.`;
-  qs('#updated-at').innerText = info;
+  qs('#info-message').innerText = info;
 
   // Empty out the results container.
   Array.from(resultsContainer.childNodes).forEach(n => {
