@@ -50,7 +50,7 @@ function handleResponse(res) {
   } catch(error) {
     let info = `No results for "${qs('input').value}". `;
     info += `Common words and swears (decided by YT) are excluded. `;
-    info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
+    info += `Queries can only contain dictionary words (try squeaks instead of squeex). `;
     qs('#info-message').innerText = info;
     console.log(error);
     return;
@@ -60,7 +60,7 @@ function handleResponse(res) {
   if (!word) {
     let info = `No results for "${qs('input').value}".\n`;
     info += `Common words and swears (decided by YT) are excluded. `;
-    info += `Queries currently can only be a single dictionary word (try squeaks instead of squeex). `;
+    info += `Queries can only contain dictionary words (try squeaks instead of squeex). `;
     qs('#info-message').innerText = info;
     return;
   }
@@ -68,7 +68,7 @@ function handleResponse(res) {
   // Show when data was last updated
   const totalMentions = Object.values(segments).reduce((acc, vidSegments) => {
     return acc + vidSegments.reduce((acc, [time, text]) => {
-      return acc + (text.match(new RegExp(word, 'g')) || []).length;
+      return acc + (text.match(new RegExp(escapeRegExp(word), 'ig')) || []).length;
     }, 0)
   }, 0);
   const info = `Squeex has said '${word}' ${totalMentions} times. ` + 
@@ -198,6 +198,11 @@ function getDays(start, end) {
   }
 
   return list;
+}
+
+// https://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
 

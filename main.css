@@ -17,9 +17,10 @@ input {
 
 }
 
-#updated-at {
+#info-message {
+	max-width: 500px;
 	font-size: 0.9rem;
-
+	text-align: center;
 }
 
 #canvas-container {
