@@ -99,8 +99,8 @@ if __name__ == '__main__':
 	# print(json.dumps(final_segments, indent=2))
 
 
-	# with open('data/final.json', 'w') as f:
-	# 	json.dump(output, f)
+	with open('data/final.json', 'w') as f:
+		json.dump(output, f)
 
 	with open('data/full.json', 'w') as f:
 		json.dump(full_text_obj, f)

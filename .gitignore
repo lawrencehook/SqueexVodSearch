@@ -1,3 +1,5 @@
+*.vtt
+
 # Logs
 logs
 *.log
