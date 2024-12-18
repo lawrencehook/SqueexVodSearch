@@ -1,4 +1,7 @@
-*.vtt
+*.vtt*
+.DS_Store
+**/package-lock.json
+urls.txt
 
 # Logs
 logs
