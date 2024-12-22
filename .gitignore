@@ -1,6 +1,7 @@
 *.vtt*
 .DS_Store
 **/package-lock.json
+app/data/squeex*.json
 
 # Logs
 logs

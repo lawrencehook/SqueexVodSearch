@@ -2,5 +2,5 @@
 set -e
 
 python3 scripts/final.py
-cp data/final.json ../app/data/squeex.json
-cp data/full.json ../app/data/squeex_full.json
+aws s3 cp data/final.json s3://squeex.json
+aws s3 cp data/full.json  s3://squeex_full.json
