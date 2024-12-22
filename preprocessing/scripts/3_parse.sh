@@ -3,7 +3,9 @@
 OIFS="$IFS"
 IFS=$'\n'
 
-for file in `ls -1 data/vtt`; do
+for file in `ls -1 data/vtt/*.vtt`; do
 	echo $file;
-	python3 scripts/parse.py data/vtt/$file > data/parsed/${file/vtt/json}
+	output=${file/data\/vtt/data\/parsed};
+	output=${output/en.vtt/en.json};
+	python3 scripts/parse.py $file > $output;
 done
