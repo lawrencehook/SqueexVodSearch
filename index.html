@@ -16,7 +16,14 @@
 
 	<h1>Squeex VOD Search</h1>
 
-	<input type="text">
+	<div id="search-container">
+		<input type="text" placeholder="Search for a word or phrase...">
+		<div id="loading-spinner"></div>
+	</div>
+
+	<div id="suggestions">
+		Try: <button>gaming</button><button>coffee</button><button>funny</button><button>sleep</button><button>music</button><button>movie</button>
+	</div>
 
 	<div id='info-message'></div>
 
@@ -26,6 +33,9 @@
 
 	<div id="results-container">
 		<div id="template-video-container" class="video-container">
+			<a class="video-thumbnail" href="" target="_blank">
+				<img src="" alt="">
+			</a>
 			<a class="video-title" href="" target="_blank"></a>
 			<p class="upload-date"></p>
 			<div class="segments-container">

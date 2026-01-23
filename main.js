@@ -42,8 +42,14 @@ const vidContainerTemplate = qs('#template-video-container');
 const segmentTemplate = qs('#segment-template');
 const resultsContainer = qs('#results-container');
 const ctx = qs('#barchart');
+const spinner = qs('#loading-spinner');
 let chart;
+let currentWord = '';
+let chartDays = [];
+let chartVideoIds = []; // Maps bar index to array of video IDs for that date
+
 function handleResponse(res) {
+  spinner.classList.remove('active');
   let parsed;
   try {
     parsed = JSON.parse(res);
@@ -65,6 +71,8 @@ function handleResponse(res) {
     return;
   }
 
+  currentWord = word;
+
   // Show when data was last updated
   const totalMentions = Object.values(segments).reduce((acc, vidSegments) => {
     return acc + vidSegments.reduce((acc, [time, text]) => {
@@ -81,12 +89,12 @@ function handleResponse(res) {
     n.remove();
   })
 
-  // Sort segments
+  // Sort segments by date (most recent first)
   const segmentEntries = Object.entries(segments);
   segmentEntries.sort((a, b) => {
     const aDate = new Date(meta[a[0]].upload_date);
     const bDate = new Date(meta[b[0]].upload_date);
-    return aDate.getTime() < bDate.getTime();
+    return bDate.getTime() - aDate.getTime();
   });
 
   segmentEntries.forEach(([id, vidSegments]) => {
@@ -94,6 +102,18 @@ function handleResponse(res) {
     vidContainer.removeAttribute('id');
 
     const { upload_date, title } = meta[id];
+
+    // Add video ID for chart click navigation
+    vidContainer.setAttribute('data-video-id', id);
+
+    // Thumbnail
+    const thumbLink = qs('.video-thumbnail', vidContainer);
+    const thumbImg = qs('.video-thumbnail img', vidContainer);
+    thumbLink.setAttribute('href', `https://youtube.com/watch?v=${id}`);
+    thumbImg.setAttribute('src', `https://img.youtube.com/vi/${id}/mqdefault.jpg`);
+    thumbImg.setAttribute('alt', title);
+    thumbImg.onerror = () => { thumbImg.style.display = 'none'; };
+
     const titleNode = qs('.video-title', vidContainer);
     const uploadNode = qs('.upload-date', vidContainer);
     titleNode.innerText = title;
@@ -110,7 +130,12 @@ function handleResponse(res) {
       const t = Math.max(0, Number(startTime) - 3);
 
       aNode.setAttribute('href', `https://youtube.com/watch?v=${id}&t=${t}`);
-      aNode.innerText = `${startTime}: ${text}`;
+      // Highlight matching word
+      const highlighted = text.replace(
+        new RegExp(`(${escapeRegExp(currentWord)})`, 'gi'),
+        '<mark>$1</mark>'
+      );
+      aNode.innerHTML = `${startTime}: ${highlighted}`;
       segsContainer.append(segNode);
     });
 
@@ -119,48 +144,127 @@ function handleResponse(res) {
 
 
 
-  // Chart.
+  // Chart - aggregate by video upload date (only days with data)
   if (chart) chart.destroy();
-  const start = new Date(
-                  Math.min(
-                    ...Object.values(meta).
-                      map(({ upload_date }) => new Date(upload_date).getTime())
-                  )
-                );
-  const end = new Date(
-                Math.max(
-                  ...Object.values(meta).
-                    map(({ upload_date }) => new Date(upload_date).getTime())
-                )
-              );
-  const days = getDays(start, end).map(date => formatter.format(date));
 
-  let data = new Array(days.length).fill(0);
-  const range = (end.getTime() - start.getTime());
-  const numDays = days.length;
+  const chartData = {};
+  const chartVideoMap = {}; // date -> [video IDs]
   Object.entries(segments).forEach(([id, vidSegments]) => {
     const { upload_date } = meta[id];
-    const day = dateToDay(new Date(upload_date));
-    const bin = 1 + Math.ceil(numDays * (day.getTime() - start.getTime()) / range);
-
-    data[bin] += vidSegments.length;
+    const timestamp = new Date(upload_date).getTime();
+    // Use timestamp as key to avoid date formatting issues
+    if (!chartData[timestamp]) {
+      chartData[timestamp] = { count: 0, date: upload_date, ids: [] };
+    }
+    chartData[timestamp].count += vidSegments.length;
+    chartData[timestamp].ids.push(id);
   });
+
+  // Sort by timestamp (oldest first for chart)
+  const sortedEntries = Object.entries(chartData).sort((a, b) => {
+    return Number(a[0]) - Number(b[0]);
+  });
+
+  chartDays = sortedEntries.map(([, { date }]) => formatter.format(new Date(date)));
+  const data = sortedEntries.map(([, { count }]) => count);
+  chartVideoIds = sortedEntries.map(([, { ids }]) => ids);
 
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: days,
+      labels: chartDays,
       datasets: [{
         label: `Mentions of '${word}'`,
         data,
-        borderWidth: 1,
-        barThickness: 1,
+        backgroundColor: 'rgba(90, 103, 216, 0.7)',
+        hoverBackgroundColor: 'rgba(90, 103, 216, 0.9)',
+        borderRadius: 2,
+        borderSkipped: false,
+        barThickness: 'flex',
+        minBarLength: 4,
+        barPercentage: 0.9,
+        categoryPercentage: 0.9,
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: {
+        mode: 'index',
+        intersect: true
+      },
+      onHover: (event, elements) => {
+        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const dataIndex = elements[0].index;
+          const videoIds = chartVideoIds[dataIndex];
+          if (videoIds && videoIds.length > 0) {
+            const firstId = videoIds[0];
+            const target = qs(`.video-container[data-video-id="${firstId}"]`);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              videoIds.forEach(id => {
+                const card = qs(`.video-container[data-video-id="${id}"]`);
+                if (card) {
+                  card.classList.add('highlight');
+                  setTimeout(() => card.classList.remove('highlight'), 1500);
+                }
+              });
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            boxWidth: 12,
+            padding: 16,
+            font: { size: 13 },
+            color: '#4a5568'
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(45, 55, 72, 0.95)',
+          titleFont: { size: 13, weight: '600' },
+          bodyFont: { size: 12 },
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: false,
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => `${item.raw} mention${item.raw !== 1 ? 's' : ''} — click to jump`
+          }
+        }
+      },
       scales: {
+        x: {
+          offset: true,
+          grid: { display: false },
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 12,
+            color: '#718096',
+            font: { size: 11 }
+          },
+          border: { display: false }
+        },
         y: {
-          beginAtZero: true
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(226, 232, 240, 0.8)',
+            drawBorder: false
+          },
+          ticks: {
+            color: '#718096',
+            font: { size: 11 },
+            padding: 8
+          },
+          border: { display: false }
         }
       }
     }
@@ -208,12 +312,37 @@ function escapeRegExp(string) {
 
 /* Main */
 const input = qs('input');
+
+function doSearch(term) {
+  if (!term.trim()) return;
+  spinner.classList.add('active');
+  input.value = term;
+  sendRequest(term).then(res => {
+    handleResponse(res);
+  });
+}
+
 input.addEventListener('keyup', e => {
   if (e.key === 'Enter' || e.keyCode === 13) {
-    sendRequest(input.value).then(res => {
-      handleResponse(res);
-    });
+    doSearch(input.value);
   }
 });
 
+// Suggestion buttons
+qsa('#suggestions button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    doSearch(btn.textContent);
+  });
+});
+
+// Random word on page load
+const randomWords = [
+  'youtube', 'twitch', 'gaming', 'stream', 'chat', 'funny',
+  'coffee', 'music', 'movie', 'pizza', 'sleep', 'water',
+  'friend', 'money', 'crazy', 'actually', 'literally', 'basically'
+];
+const randomWord = randomWords[Math.floor(Math.random() * randomWords.length)];
+doSearch(randomWord);
+
 input.focus();
+input.select();
