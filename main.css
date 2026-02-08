@@ -32,12 +32,55 @@ body {
 	min-height: 100vh;
 }
 
+#top-bar {
+	width: 100%;
+	max-width: 500px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	position: relative;
+}
+
 h1 {
 	margin: 0;
 	font-size: 1.75rem;
 	font-weight: 600;
 	color: var(--color-text);
 	letter-spacing: -0.02em;
+}
+
+#theme-switcher {
+	position: absolute;
+	right: 0;
+	display: flex;
+	gap: 2px;
+	border: 1px solid var(--color-border);
+	border-radius: 20px;
+	padding: 2px;
+}
+
+#theme-switcher button {
+	background: none;
+	border: none;
+	border-radius: 16px;
+	width: 32px;
+	height: 28px;
+	cursor: pointer;
+	font-size: 0.95rem;
+	color: var(--color-text-muted);
+	transition: background 0.2s, color 0.2s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#theme-switcher button:hover {
+	color: var(--color-text);
+}
+
+#theme-switcher button.active {
+	background: var(--color-border);
+	color: var(--color-text);
 }
 
 #search-container {
@@ -287,4 +330,30 @@ canvas {
 
 .segments-container::-webkit-scrollbar-thumb:hover {
 	background: var(--color-text-muted);
+}
+
+/* Dark mode */
+body.dark {
+	--color-bg: #1a202c;
+	--color-surface: #2d3748;
+	--color-text: #e2e8f0;
+	--color-text-muted: #a0aec0;
+	--color-border: #4a5568;
+	--color-accent: #7f8cf8;
+	--color-accent-hover: #a3b1ff;
+	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .segments-container mark {
+	background: rgba(127, 140, 248, 0.3);
+}
+
+body.dark #suggestions button {
+	background: rgba(127, 140, 248, 0.15);
+	color: var(--color-accent);
+}
+
+body.dark #suggestions button:hover {
+	background: rgba(127, 140, 248, 0.25);
 }

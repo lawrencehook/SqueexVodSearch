@@ -14,7 +14,14 @@
 </head>
 <body>
 
-	<h1>Squeex VOD Search</h1>
+	<div id="top-bar">
+		<h1>Squeex VOD Search</h1>
+		<div id="theme-switcher">
+			<button data-theme="system" class="active" aria-label="System theme">&#9684;</button>
+			<button data-theme="light" aria-label="Light theme">&#9788;</button>
+			<button data-theme="dark" aria-label="Dark theme">&#9790;</button>
+		</div>
+	</div>
 
 	<div id="search-container">
 		<input type="text" placeholder="Search for a word or phrase...">
@@ -22,7 +29,7 @@
 	</div>
 
 	<div id="suggestions">
-		Try: <button>gaming</button><button>coffee</button><button>funny</button><button>sleep</button><button>music</button><button>movie</button>
+		Try: <span id="suggestion-pills"></span>
 	</div>
 
 	<div id='info-message'></div>

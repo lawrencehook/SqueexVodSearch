@@ -32,9 +32,8 @@ function sendHTTPRequest(type, url, jsonParams, { token, raw=false }={}) {
 }
 
 function sendRequest(word) {
-  const params = {};
   const url = HOST + '/' + word;
-  const request = sendHTTPRequest('GET', url, params);
+  const request = sendHTTPRequest('GET', url, null);
   return request;
 }
 
@@ -324,25 +323,90 @@ function doSearch(term) {
 
 input.addEventListener('keyup', e => {
   if (e.key === 'Enter' || e.keyCode === 13) {
+    setQueryParam(input.value);
     doSearch(input.value);
   }
 });
 
-// Suggestion buttons
-qsa('#suggestions button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    doSearch(btn.textContent);
-  });
-});
+// URL param support
+function getQueryParam() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('q') || '';
+}
 
-// Random word on page load
-const randomWords = [
-  'youtube', 'twitch', 'gaming', 'stream', 'chat', 'funny',
-  'coffee', 'music', 'movie', 'pizza', 'sleep', 'water',
-  'friend', 'money', 'crazy', 'actually', 'literally', 'basically'
+function setQueryParam(term) {
+  const url = new URL(window.location);
+  url.searchParams.set('q', term);
+  window.history.replaceState(null, '', url);
+}
+
+// Fallback suggestions if suggestions.json isn't available
+const FALLBACK_SUGGESTIONS = [
+  'bazinga', 'minecraft', 'speedrunner', 'fortnite', 'speedrun', 'emoji'
 ];
-const randomWord = randomWords[Math.floor(Math.random() * randomWords.length)];
-doSearch(randomWord);
+const FALLBACK_RANDOM = [
+  'unironically', 'speedrunning', 'instagram', 'twitchcon',
+  'glitched', 'stardew', 'playthrough', 'subathon',
+  'parasocial', 'koopas', 'goated', 'valorant'
+];
 
-input.focus();
-input.select();
+function renderPills(words) {
+  const container = qs('#suggestion-pills');
+  container.innerHTML = '';
+  words.forEach(w => {
+    const btn = document.createElement('button');
+    btn.textContent = w;
+    btn.addEventListener('click', () => {
+      setQueryParam(w);
+      doSearch(w);
+    });
+    container.append(btn);
+  });
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Load suggestions from generated JSON, fall back to hardcoded
+fetch('suggestions.json')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(data => {
+    renderPills(data.pills);
+    initSearch(data.random);
+  })
+  .catch(() => {
+    renderPills(FALLBACK_SUGGESTIONS);
+    initSearch(FALLBACK_RANDOM);
+  });
+
+function initSearch(randomWords) {
+  const paramWord = getQueryParam();
+  if (!paramWord || paramWord === 'random') {
+    doSearch(pickRandom(randomWords));
+  } else {
+    doSearch(paramWord);
+  }
+  input.focus();
+  input.select();
+}
+
+// Theme switcher (system / light / dark)
+const themeBtns = qsa('#theme-switcher button');
+function applyTheme(mode) {
+  localStorage.setItem('theme', mode);
+  themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === mode));
+  if (mode === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.classList.toggle('dark', prefersDark);
+  } else {
+    document.body.classList.toggle('dark', mode === 'dark');
+  }
+}
+themeBtns.forEach(btn => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (localStorage.getItem('theme') === 'system') applyTheme('system');
+});
+applyTheme(localStorage.getItem('theme') || 'system');
