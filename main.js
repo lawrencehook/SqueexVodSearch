@@ -370,13 +370,15 @@ function handleResponse(res) {
           afterBuildTicks(axis) {
             const min = axis.min;
             const max = axis.max;
+            const range = max - min;
             const ticks = [{ value: min }];
-            // Add Jan 1 of each year in range
+            // Add Jan 1 of each year, skip if too close to min/max
+            const minBuffer = range * 0.08;
             const startYear = new Date(min).getFullYear() + 1;
             const endYear = new Date(max).getFullYear();
             for (let y = startYear; y <= endYear; y++) {
               const jan1 = new Date(y, 0, 1).getTime();
-              if (jan1 > min && jan1 < max) {
+              if (jan1 - min > minBuffer && max - jan1 > minBuffer) {
                 ticks.push({ value: jan1 });
               }
             }
