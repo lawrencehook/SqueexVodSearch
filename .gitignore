@@ -1,4 +1,5 @@
 *.vtt*
+*.db
 .DS_Store
 english_freq_cache.txt
 **/package-lock.json
