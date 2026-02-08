@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# existing_meta=`cat ../app/data/squeex.json | jq ".meta"`;
+# Extract known video IDs from existing JSON to skip already-processed videos.
+echo "Extracting known video IDs from squeex.json..."
+jq -r '.meta | keys[]' ../app/data/squeex.json > data/known_ids.txt
+echo "Found $(wc -l < data/known_ids.txt) known videos."
 
 cat data/urls.txt | while read url; do
   echo
@@ -10,16 +13,15 @@ cat data/urls.txt | while read url; do
   # Check for existing subtitle files.
   if find "data/vtt" -type f -name "*${vid_id}*" | grep -q .; then
     ls data/vtt/*${vid_id}*
-    echo "Match found!"
+    echo "Match found in local VTT files!"
     continue;
   fi
 
-  # # Check the json for existing results.
-  # result=`echo $existing_meta | jq ".${vid_id}" | jq -r type`
-  # if [ $result = "object" ]; then
-  #   echo "Match found!"
-  #   continue;
-  # fi
+  # Check if already processed in the existing JSON data.
+  if grep -q "$vid_id" data/known_ids.txt; then
+    echo "Match found in existing JSON data!"
+    continue;
+  fi
 
   # check if the video is accessible.
   yt-dlp --print "%(id)s" $url

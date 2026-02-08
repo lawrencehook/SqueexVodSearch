@@ -115,10 +115,13 @@ function handleResponse(res) {
 
     const titleNode = qs('.video-title', vidContainer);
     const uploadNode = qs('.upload-date', vidContainer);
+    const mentionNode = qs('.mention-count', vidContainer);
     titleNode.innerText = title;
     titleNode.setAttribute('title', title);
     titleNode.setAttribute('href', `https://youtube.com/watch?v=${id}`);
     uploadNode.innerText = formatDate(upload_date);
+    const count = vidSegments.length;
+    mentionNode.innerText = `${count} mention${count !== 1 ? 's' : ''}`;
 
     const segsContainer = qs('.segments-container', vidContainer);
     vidSegments.forEach(segment => {
@@ -143,43 +146,49 @@ function handleResponse(res) {
 
 
 
-  // Chart - aggregate by video upload date (only days with data)
+  // Chart - aggregate by video upload date with fixed x-axis range
   if (chart) chart.destroy();
 
+  // Compute global date range from all videos
+  const allDates = Object.values(meta).map(m => new Date(m.upload_date).getTime());
+  const globalMin = new Date(Math.min(...allDates));
+  const globalMax = new Date(Math.max(...allDates));
+  // Add a small buffer so edge bars aren't clipped
+  globalMin.setDate(globalMin.getDate() - 7);
+  globalMax.setDate(globalMax.getDate() + 7);
+
+  // Aggregate mentions by upload date
   const chartData = {};
-  const chartVideoMap = {}; // date -> [video IDs]
   Object.entries(segments).forEach(([id, vidSegments]) => {
     const { upload_date } = meta[id];
-    const timestamp = new Date(upload_date).getTime();
-    // Use timestamp as key to avoid date formatting issues
-    if (!chartData[timestamp]) {
-      chartData[timestamp] = { count: 0, date: upload_date, ids: [] };
+    const date = new Date(upload_date);
+    const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+    if (!chartData[key]) {
+      chartData[key] = { count: 0, date, ids: [] };
     }
-    chartData[timestamp].count += vidSegments.length;
-    chartData[timestamp].ids.push(id);
+    chartData[key].count += vidSegments.length;
+    chartData[key].ids.push(id);
   });
 
-  // Sort by timestamp (oldest first for chart)
+  // Build {x, y} data sorted by date
   const sortedEntries = Object.entries(chartData).sort((a, b) => {
-    return Number(a[0]) - Number(b[0]);
+    return a[1].date.getTime() - b[1].date.getTime();
   });
 
-  chartDays = sortedEntries.map(([, { date }]) => formatter.format(new Date(date)));
-  const data = sortedEntries.map(([, { count }]) => count);
+  const data = sortedEntries.map(([, { count, date }]) => ({ x: date, y: count }));
   chartVideoIds = sortedEntries.map(([, { ids }]) => ids);
 
+  const colors = getChartColors();
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: chartDays,
       datasets: [{
         label: `Mentions of '${word}'`,
         data,
-        backgroundColor: 'rgba(90, 103, 216, 0.7)',
-        hoverBackgroundColor: 'rgba(90, 103, 216, 0.9)',
+        backgroundColor: colors.bar,
+        hoverBackgroundColor: colors.barHover,
         borderRadius: 2,
         borderSkipped: false,
-        barThickness: 'flex',
         minBarLength: 4,
         barPercentage: 0.9,
         categoryPercentage: 0.9,
@@ -189,7 +198,7 @@ function handleResponse(res) {
       responsive: true,
       maintainAspectRatio: true,
       interaction: {
-        mode: 'index',
+        mode: 'nearest',
         intersect: true
       },
       onHover: (event, elements) => {
@@ -208,7 +217,7 @@ function handleResponse(res) {
                 const card = qs(`.video-container[data-video-id="${id}"]`);
                 if (card) {
                   card.classList.add('highlight');
-                  setTimeout(() => card.classList.remove('highlight'), 1500);
+                  setTimeout(() => card.classList.remove('highlight'), 2500);
                 }
               });
             }
@@ -222,24 +231,33 @@ function handleResponse(res) {
             boxWidth: 12,
             padding: 16,
             font: { size: 13 },
-            color: '#4a5568'
+            color: colors.legend
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(45, 55, 72, 0.95)',
+          backgroundColor: colors.tooltip,
           titleFont: { size: 13, weight: '600' },
           bodyFont: { size: 12 },
           padding: 12,
           cornerRadius: 8,
           displayColors: false,
           callbacks: {
-            title: (items) => items[0].label,
-            label: (item) => `${item.raw} mention${item.raw !== 1 ? 's' : ''} — click to jump`
+            label: (item) => `${item.raw.y} mention${item.raw.y !== 1 ? 's' : ''} — click to jump`
           }
         }
       },
       scales: {
         x: {
+          type: 'time',
+          min: globalMin,
+          max: globalMax,
+          time: {
+            unit: 'month',
+            displayFormats: {
+              month: 'MMM yyyy'
+            },
+            tooltipFormat: 'MMM d, yyyy'
+          },
           offset: true,
           grid: { display: false },
           ticks: {
@@ -247,7 +265,7 @@ function handleResponse(res) {
             minRotation: 45,
             autoSkip: true,
             maxTicksLimit: 12,
-            color: '#718096',
+            color: colors.text,
             font: { size: 11 }
           },
           border: { display: false }
@@ -255,11 +273,11 @@ function handleResponse(res) {
         y: {
           beginAtZero: true,
           grid: {
-            color: 'rgba(226, 232, 240, 0.8)',
+            color: colors.grid,
             drawBorder: false
           },
           ticks: {
-            color: '#718096',
+            color: colors.text,
             font: { size: 11 },
             padding: 8
           },
@@ -273,6 +291,19 @@ function handleResponse(res) {
 /* Utils */
 function qs (q,r=document) { return r.querySelector(q);    }
 function qsa(q,r=document) { return r.querySelectorAll(q); }
+
+function getChartColors() {
+  const style = getComputedStyle(document.body);
+  const isDark = document.body.classList.contains('dark');
+  return {
+    bar: isDark ? 'rgba(127, 140, 248, 0.7)' : 'rgba(90, 103, 216, 0.7)',
+    barHover: isDark ? 'rgba(127, 140, 248, 0.9)' : 'rgba(90, 103, 216, 0.9)',
+    text: style.getPropertyValue('--color-text-muted').trim(),
+    grid: isDark ? 'rgba(74, 85, 104, 0.5)' : 'rgba(226, 232, 240, 0.8)',
+    legend: style.getPropertyValue('--color-text-muted').trim(),
+    tooltip: isDark ? 'rgba(26, 32, 44, 0.95)' : 'rgba(45, 55, 72, 0.95)',
+  };
+}
 
 const formatter = new Intl.DateTimeFormat(undefined);
 function formatDate(date) {
@@ -315,9 +346,13 @@ const input = qs('input');
 function doSearch(term) {
   if (!term.trim()) return;
   spinner.classList.add('active');
+  qs('#info-message').innerText = '';
   input.value = term;
   sendRequest(term).then(res => {
     handleResponse(res);
+  }).catch(() => {
+    spinner.classList.remove('active');
+    qs('#info-message').innerText = 'Something went wrong. Please try again.';
   });
 }
 
@@ -350,18 +385,29 @@ const FALLBACK_RANDOM = [
   'parasocial', 'koopas', 'goated', 'valorant'
 ];
 
-function renderPills(words) {
-  const container = qs('#suggestion-pills');
-  container.innerHTML = '';
+function buildRow(label, words, btnClass) {
+  const row = document.createElement('div');
+  row.className = 'suggestion-row';
+  const lbl = document.createElement('span');
+  lbl.className = 'suggestion-label';
+  lbl.textContent = label;
+  row.append(lbl);
   words.forEach(w => {
     const btn = document.createElement('button');
+    if (btnClass) btn.className = btnClass;
     btn.textContent = w;
-    btn.addEventListener('click', () => {
-      setQueryParam(w);
-      doSearch(w);
-    });
-    container.append(btn);
+    btn.addEventListener('click', () => { setQueryParam(w); doSearch(w); });
+    row.append(btn);
   });
+  return row;
+}
+
+function renderAllSuggestions(pills, trending, phrases) {
+  const container = qs('#suggestions');
+  container.innerHTML = '';
+  if (pills && pills.length) container.append(buildRow('try', pills.slice(0, 6)));
+  if (trending && trending.length) container.append(buildRow('trending', trending.slice(0, 8), 'trending'));
+  if (phrases && phrases.length) container.append(buildRow('phrases', phrases.slice(0, 6), 'phrase'));
 }
 
 function pickRandom(arr) {
@@ -369,14 +415,14 @@ function pickRandom(arr) {
 }
 
 // Load suggestions from generated JSON, fall back to hardcoded
-fetch('suggestions.json')
+fetch('suggestions.json?v=' + Date.now())
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(data => {
-    renderPills(data.pills);
+    renderAllSuggestions(data.pills, data.trending, data.phrases);
     initSearch(data.random);
   })
   .catch(() => {
-    renderPills(FALLBACK_SUGGESTIONS);
+    renderAllSuggestions(FALLBACK_SUGGESTIONS);
     initSearch(FALLBACK_RANDOM);
   });
 
@@ -393,6 +439,20 @@ function initSearch(randomWords) {
 
 // Theme switcher (system / light / dark)
 const themeBtns = qsa('#theme-switcher button');
+
+function updateChartColors() {
+  if (!chart) return;
+  const colors = getChartColors();
+  chart.data.datasets[0].backgroundColor = colors.bar;
+  chart.data.datasets[0].hoverBackgroundColor = colors.barHover;
+  chart.options.plugins.legend.labels.color = colors.legend;
+  chart.options.plugins.tooltip.backgroundColor = colors.tooltip;
+  chart.options.scales.x.ticks.color = colors.text;
+  chart.options.scales.y.ticks.color = colors.text;
+  chart.options.scales.y.grid.color = colors.grid;
+  chart.update();
+}
+
 function applyTheme(mode) {
   localStorage.setItem('theme', mode);
   themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === mode));
@@ -402,6 +462,7 @@ function applyTheme(mode) {
   } else {
     document.body.classList.toggle('dark', mode === 'dark');
   }
+  updateChartColors();
 }
 themeBtns.forEach(btn => {
   btn.addEventListener('click', () => applyTheme(btn.dataset.theme));

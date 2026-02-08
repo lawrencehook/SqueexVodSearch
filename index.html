@@ -7,8 +7,9 @@
 
 	<link rel="stylesheet" href="main.css">
 
-	<script defer src="main.js"></script>
 	<script defer src="chart.js"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+	<script defer src="main.js"></script>
 
 
 </head>
@@ -28,9 +29,7 @@
 		<div id="loading-spinner"></div>
 	</div>
 
-	<div id="suggestions">
-		Try: <span id="suggestion-pills"></span>
-	</div>
+	<div id="suggestions"></div>
 
 	<div id='info-message'></div>
 
@@ -44,7 +43,10 @@
 				<img src="" alt="">
 			</a>
 			<a class="video-title" href="" target="_blank"></a>
-			<p class="upload-date"></p>
+			<div class="video-meta">
+				<span class="upload-date"></span>
+				<span class="mention-count"></span>
+			</div>
 			<div class="segments-container">
 				<p id="segment-template" class="segement-link"><a href="" target="_blank"></a></p>
 
