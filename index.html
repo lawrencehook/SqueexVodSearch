@@ -9,50 +9,69 @@
 
 	<script defer src="chart.js"></script>
 	<script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 	<script defer src="main.js"></script>
 
 
 </head>
 <body>
 
-	<div id="top-bar">
+	<header id="site-header">
 		<h1>Squeex VOD Search</h1>
+		<div id="search-container">
+			<input type="text" placeholder="Search for a word or phrase...">
+			<div id="loading-spinner"></div>
+		</div>
 		<div id="theme-switcher">
 			<button data-theme="system" class="active" aria-label="System theme">&#9684;</button>
 			<button data-theme="light" aria-label="Light theme">&#9788;</button>
 			<button data-theme="dark" aria-label="Dark theme">&#9790;</button>
 		</div>
+	</header>
+
+	<div id="suggestions-wrapper">
+		<button class="scroll-btn suggestions-scroll left" aria-label="Scroll left">&#8249;</button>
+		<div id="suggestions"></div>
+		<button class="scroll-btn suggestions-scroll right" aria-label="Scroll right">&#8250;</button>
 	</div>
 
-	<div id="search-container">
-		<input type="text" placeholder="Search for a word or phrase...">
-		<div id="loading-spinner"></div>
+	<div id="info-message"></div>
+	<div id="search-stats">
+		<span id="stats-main"></span>
+		<span id="stats-updated"></span>
 	</div>
 
-	<div id="suggestions"></div>
-
-	<div id='info-message'></div>
-
-	<div id="canvas-container">
-		<canvas id="barchart"></canvas>
+	<div id="chart-wrapper">
+		<div id="chart-range-buttons">
+			<button data-range="3m">3M</button>
+			<button data-range="6m">6M</button>
+			<button data-range="1y">1Y</button>
+			<button data-range="all" class="active">All</button>
+		</div>
+		<div id="canvas-container">
+			<canvas id="barchart"></canvas>
+		</div>
 	</div>
 
-	<div id="results-container">
-		<div id="template-video-container" class="video-container">
-			<a class="video-thumbnail" href="" target="_blank">
-				<img src="" alt="">
-			</a>
-			<a class="video-title" href="" target="_blank"></a>
-			<div class="video-meta">
-				<span class="upload-date"></span>
-				<span class="mention-count"></span>
-			</div>
-			<div class="segments-container">
-				<p id="segment-template" class="segement-link"><a href="" target="_blank"></a></p>
-
+	<div id="results-wrapper">
+		<button class="scroll-btn results-scroll left" aria-label="Scroll left">&#8249;</button>
+		<div id="results-container">
+			<div id="template-video-container" class="video-container">
+				<a class="video-thumbnail" href="" target="_blank">
+					<img src="" alt="">
+				</a>
+				<a class="video-title" href="" target="_blank"></a>
+				<div class="video-meta">
+					<span class="upload-date"></span>
+					<span class="mention-count"></span>
+				</div>
+				<div class="segments-container">
+					<p id="segment-template" class="segement-link"><a href="" target="_blank"></a></p>
+				</div>
 			</div>
 		</div>
-		
+		<button class="scroll-btn results-scroll right" aria-label="Scroll right">&#8250;</button>
 	</div>
 
 	<div id="chart-container"></div>

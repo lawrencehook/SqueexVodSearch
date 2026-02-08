@@ -42,10 +42,89 @@ const segmentTemplate = qs('#segment-template');
 const resultsContainer = qs('#results-container');
 const ctx = qs('#barchart');
 const spinner = qs('#loading-spinner');
+const scrollLeftBtn = qs('.results-scroll.left');
+const scrollRightBtn = qs('.results-scroll.right');
 let chart;
 let currentWord = '';
 let chartDays = [];
 let chartVideoIds = []; // Maps bar index to array of video IDs for that date
+let chartGlobalMin = null;
+let chartGlobalMax = null;
+let hoverDateX = null;
+
+const hoverDatePlugin = {
+  id: 'hoverDate',
+  afterEvent(chart, args) {
+    const event = args.event;
+    if (event.type === 'mousemove' && args.inChartArea) {
+      hoverDateX = event.x;
+    } else if (event.type === 'mouseout') {
+      hoverDateX = null;
+    }
+    chart.draw();
+  },
+  afterDraw(chart) {
+    if (hoverDateX === null) return;
+    const xScale = chart.scales.x;
+    const dateVal = xScale.getValueForPixel(hoverDateX);
+    if (!dateVal) return;
+    const date = new Date(dateVal);
+    const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const ctx = chart.ctx;
+    const colors = getChartColors();
+    ctx.save();
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = colors.text;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, hoverDateX, chart.chartArea.bottom + 14);
+    ctx.restore();
+  }
+};
+
+// Generic horizontal scroll button setup
+function setupScrollButtons(container, leftBtn, rightBtn, scrollAmount) {
+  leftBtn.addEventListener('click', () => {
+    container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+  });
+  rightBtn.addEventListener('click', () => {
+    container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  });
+  leftBtn.addEventListener('dblclick', () => {
+    container.scrollTo({ left: 0, behavior: 'smooth' });
+  });
+  rightBtn.addEventListener('dblclick', () => {
+    container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+  });
+  function update() {
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    leftBtn.classList.toggle('visible', scrollLeft > 0);
+    rightBtn.classList.toggle('visible', scrollLeft + clientWidth < scrollWidth - 1);
+  }
+  container.addEventListener('scroll', update);
+  new ResizeObserver(update).observe(container);
+  return update;
+}
+
+const updateResultsScroll = setupScrollButtons(resultsContainer, scrollLeftBtn, scrollRightBtn, 320);
+
+function filterVideosByChartRange() {
+  if (!chart) return;
+  const xScale = chart.scales.x;
+  const visMin = xScale.min;
+  const visMax = xScale.max;
+  resultsContainer.querySelectorAll('.video-container').forEach(card => {
+    const date = Number(card.getAttribute('data-upload-date'));
+    if (!date) return;
+    card.style.display = (date >= visMin && date <= visMax) ? '' : 'none';
+  });
+  updateResultsScroll();
+}
+
+// Suggestion scroll buttons
+const suggestionsContainer = qs('#suggestions');
+const sugScrollLeft = qs('.suggestions-scroll.left');
+const sugScrollRight = qs('.suggestions-scroll.right');
+const updateSuggestionsScroll = setupScrollButtons(suggestionsContainer, sugScrollLeft, sugScrollRight, 200);
 
 function handleResponse(res) {
   spinner.classList.remove('active');
@@ -63,10 +142,10 @@ function handleResponse(res) {
   const { word, segments, meta, updatedAt } = parsed;
 
   if (!word) {
-    let info = `No results for "${qs('input').value}".\n`;
-    info += `Common words and swears (decided by YT) are excluded. `;
-    info += `Queries can only contain dictionary words (try squeaks instead of squeex). `;
+    let info = `No results for "${qs('input').value}". `;
+    info += `Common words and swears (decided by YT) are excluded.`;
     qs('#info-message').innerText = info;
+    qs('#search-stats').classList.remove('visible');
     return;
   }
 
@@ -78,9 +157,13 @@ function handleResponse(res) {
       return acc + (text.match(new RegExp(escapeRegExp(word), 'ig')) || []).length;
     }, 0)
   }, 0);
-  const info = `Squeex has said '${word}' ${totalMentions} times. ` + 
-               `Last updated: ${formatDate(updatedAt)}.`;
-  qs('#info-message').innerText = info;
+  qs('#info-message').innerText = '';
+  const statsMain = qs('#stats-main');
+  const statsUpdated = qs('#stats-updated');
+  const videoCount = Object.keys(segments).length;
+  statsMain.innerHTML = `<span class="stats-word">${word}</span> <strong>${totalMentions}</strong> mentions across <strong>${videoCount}</strong> videos`;
+  statsUpdated.textContent = `Updated ${formatDate(updatedAt)}`;
+  qs('#search-stats').classList.add('visible');
 
   // Empty out the results container.
   Array.from(resultsContainer.childNodes).forEach(n => {
@@ -88,12 +171,12 @@ function handleResponse(res) {
     n.remove();
   })
 
-  // Sort segments by date (most recent first)
+  // Sort segments by date (oldest first, left to right)
   const segmentEntries = Object.entries(segments);
   segmentEntries.sort((a, b) => {
     const aDate = new Date(meta[a[0]].upload_date);
     const bDate = new Date(meta[b[0]].upload_date);
-    return bDate.getTime() - aDate.getTime();
+    return aDate.getTime() - bDate.getTime();
   });
 
   segmentEntries.forEach(([id, vidSegments]) => {
@@ -102,8 +185,9 @@ function handleResponse(res) {
 
     const { upload_date, title } = meta[id];
 
-    // Add video ID for chart click navigation
+    // Add video ID and date for chart click navigation and filtering
     vidContainer.setAttribute('data-video-id', id);
+    vidContainer.setAttribute('data-upload-date', new Date(upload_date).getTime());
 
     // Thumbnail
     const thumbLink = qs('.video-thumbnail', vidContainer);
@@ -144,10 +228,13 @@ function handleResponse(res) {
     resultsContainer.append(vidContainer);
   });
 
-
+  requestAnimationFrame(() => {
+    resultsContainer.scrollLeft = resultsContainer.scrollWidth;
+    updateResultsScroll();
+  });
 
   // Chart - aggregate by video upload date with fixed x-axis range
-  if (chart) chart.destroy();
+  if (chart) { chart.destroy(); hoverDateX = null; }
 
   // Compute global date range from all videos
   const allDates = Object.values(meta).map(m => new Date(m.upload_date).getTime());
@@ -156,6 +243,8 @@ function handleResponse(res) {
   // Add a small buffer so edge bars aren't clipped
   globalMin.setDate(globalMin.getDate() - 7);
   globalMax.setDate(globalMax.getDate() + 7);
+  chartGlobalMin = globalMin;
+  chartGlobalMax = globalMax;
 
   // Aggregate mentions by upload date
   const chartData = {};
@@ -181,6 +270,7 @@ function handleResponse(res) {
   const colors = getChartColors();
   chart = new Chart(ctx, {
     type: 'bar',
+    plugins: [hoverDatePlugin],
     data: {
       datasets: [{
         label: `Mentions of '${word}'`,
@@ -196,7 +286,7 @@ function handleResponse(res) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       interaction: {
         mode: 'nearest',
         intersect: true
@@ -212,7 +302,13 @@ function handleResponse(res) {
             const firstId = videoIds[0];
             const target = qs(`.video-container[data-video-id="${firstId}"]`);
             if (target) {
-              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Scroll the horizontal container to show the card
+              const containerRect = resultsContainer.getBoundingClientRect();
+              const targetRect = target.getBoundingClientRect();
+              const scrollOffset = targetRect.left - containerRect.left - (containerRect.width / 2 - targetRect.width / 2);
+              resultsContainer.scrollBy({ left: scrollOffset, behavior: 'smooth' });
+              // Also scroll the page to the results area
+              qs('#results-wrapper').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
               videoIds.forEach(id => {
                 const card = qs(`.video-container[data-video-id="${id}"]`);
                 if (card) {
@@ -225,13 +321,15 @@ function handleResponse(res) {
         }
       },
       plugins: {
-        legend: {
-          display: true,
-          labels: {
-            boxWidth: 12,
-            padding: 16,
-            font: { size: 13 },
-            color: colors.legend
+        legend: { display: false },
+        zoom: {
+          zoom: {
+            drag: { enabled: true, backgroundColor: 'rgba(90, 103, 216, 0.15)', borderColor: 'rgba(90, 103, 216, 0.4)', borderWidth: 1 },
+            mode: 'x',
+            onZoomComplete: () => { updateRangeButtons(); filterVideosByChartRange(); }
+          },
+          limits: {
+            x: { min: globalMin.getTime(), max: globalMax.getTime() }
           }
         },
         tooltip: {
@@ -261,14 +359,31 @@ function handleResponse(res) {
           offset: true,
           grid: { display: false },
           ticks: {
-            maxRotation: 45,
-            minRotation: 45,
-            autoSkip: true,
-            maxTicksLimit: 12,
+            maxRotation: 0,
             color: colors.text,
-            font: { size: 11 }
+            font: { size: 10 },
+            callback(value) {
+              const d = new Date(value);
+              return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            }
           },
-          border: { display: false }
+          afterBuildTicks(axis) {
+            const min = axis.min;
+            const max = axis.max;
+            const ticks = [{ value: min }];
+            // Add Jan 1 of each year in range
+            const startYear = new Date(min).getFullYear() + 1;
+            const endYear = new Date(max).getFullYear();
+            for (let y = startYear; y <= endYear; y++) {
+              const jan1 = new Date(y, 0, 1).getTime();
+              if (jan1 > min && jan1 < max) {
+                ticks.push({ value: jan1 });
+              }
+            }
+            ticks.push({ value: max });
+            axis.ticks = ticks;
+          },
+          border: { display: true, color: colors.grid }
         },
         y: {
           beginAtZero: true,
@@ -281,11 +396,21 @@ function handleResponse(res) {
             font: { size: 11 },
             padding: 8
           },
-          border: { display: false }
+          afterBuildTicks(axis) {
+            const max = axis.max;
+            axis.ticks = [{ value: max }];
+          },
+          border: { display: true, color: colors.grid }
         }
       }
     }
   });
+
+  // Double-click chart to reset zoom
+  ctx.addEventListener('dblclick', () => {
+    chart.resetZoom();
+    setChartRange('all');
+  }, true);
 }
 
 /* Utils */
@@ -350,7 +475,8 @@ function doSearch(term) {
   input.value = term;
   sendRequest(term).then(res => {
     handleResponse(res);
-  }).catch(() => {
+  }).catch(err => {
+    console.error('Search error:', err);
     spinner.classList.remove('active');
     qs('#info-message').innerText = 'Something went wrong. Please try again.';
   });
@@ -385,29 +511,28 @@ const FALLBACK_RANDOM = [
   'parasocial', 'koopas', 'goated', 'valorant'
 ];
 
-function buildRow(label, words, btnClass) {
-  const row = document.createElement('div');
-  row.className = 'suggestion-row';
-  const lbl = document.createElement('span');
-  lbl.className = 'suggestion-label';
-  lbl.textContent = label;
-  row.append(lbl);
-  words.forEach(w => {
-    const btn = document.createElement('button');
-    if (btnClass) btn.className = btnClass;
-    btn.textContent = w;
-    btn.addEventListener('click', () => { setQueryParam(w); doSearch(w); });
-    row.append(btn);
-  });
-  return row;
-}
-
 function renderAllSuggestions(pills, trending, phrases) {
   const container = qs('#suggestions');
   container.innerHTML = '';
-  if (pills && pills.length) container.append(buildRow('try', pills.slice(0, 6)));
-  if (trending && trending.length) container.append(buildRow('trending', trending.slice(0, 8), 'trending'));
-  if (phrases && phrases.length) container.append(buildRow('phrases', phrases.slice(0, 6), 'phrase'));
+  const all = [
+    ...(pills || []),
+    ...(trending || []),
+    ...(phrases || []),
+  ];
+  // Dedupe
+  const unique = [...new Set(all)];
+  // Shuffle
+  for (let i = unique.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [unique[i], unique[j]] = [unique[j], unique[i]];
+  }
+  unique.forEach(w => {
+    const btn = document.createElement('button');
+    btn.textContent = w;
+    btn.addEventListener('click', () => { setQueryParam(w); doSearch(w); });
+    container.append(btn);
+  });
+  requestAnimationFrame(updateSuggestionsScroll);
 }
 
 function pickRandom(arr) {
@@ -445,13 +570,41 @@ function updateChartColors() {
   const colors = getChartColors();
   chart.data.datasets[0].backgroundColor = colors.bar;
   chart.data.datasets[0].hoverBackgroundColor = colors.barHover;
-  chart.options.plugins.legend.labels.color = colors.legend;
   chart.options.plugins.tooltip.backgroundColor = colors.tooltip;
   chart.options.scales.x.ticks.color = colors.text;
   chart.options.scales.y.ticks.color = colors.text;
   chart.options.scales.y.grid.color = colors.grid;
   chart.update();
 }
+
+// Chart time range buttons
+const rangeBtns = qsa('#chart-range-buttons button');
+
+function updateRangeButtons() {
+  // After a drag-zoom, deactivate "All" and mark none active
+  rangeBtns.forEach(b => b.classList.remove('active'));
+}
+
+function setChartRange(range) {
+  if (!chart || !chartGlobalMax) return;
+  rangeBtns.forEach(b => b.classList.toggle('active', b.dataset.range === range));
+  if (range === 'all') {
+    chart.resetZoom();
+    filterVideosByChartRange();
+    return;
+  }
+  const max = new Date(chartGlobalMax);
+  const min = new Date(chartGlobalMax);
+  if (range === '3m') min.setMonth(min.getMonth() - 3);
+  else if (range === '6m') min.setMonth(min.getMonth() - 6);
+  else if (range === '1y') min.setFullYear(min.getFullYear() - 1);
+  chart.zoomScale('x', { min: min.getTime(), max: max.getTime() });
+  filterVideosByChartRange();
+}
+
+rangeBtns.forEach(btn => {
+  btn.addEventListener('click', () => setChartRange(btn.dataset.range));
+});
 
 function applyTheme(mode) {
   localStorage.setItem('theme', mode);

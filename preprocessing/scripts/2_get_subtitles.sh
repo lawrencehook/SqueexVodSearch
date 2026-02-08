@@ -18,7 +18,7 @@ cat data/urls.txt | while read url; do
   fi
 
   # Check if already processed in the existing JSON data.
-  if grep -q "$vid_id" data/known_ids.txt; then
+  if grep -Fq -- "$vid_id" data/known_ids.txt; then
     echo "Match found in existing JSON data!"
     continue;
   fi
@@ -34,7 +34,7 @@ cat data/urls.txt | while read url; do
 
   echo `yt-dlp --print "%(id)s:%(upload_date)s" $url` >> data/dates.txt
   yt-dlp --write-auto-subs --skip-download $url
-  mv *.vtt data/vtt
+  mv *.vtt data/vtt 2>/dev/null
 
 done
 

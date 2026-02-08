@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source venv/bin/activate
+
 OIFS="$IFS"
 IFS=$'\n'
 
